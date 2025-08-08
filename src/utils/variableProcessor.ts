@@ -25,9 +25,43 @@ export class VariableProcessor {
         while (match = variableReferenceRegex.exec(request)) {
             result += request.substring(lastIndex, match.index);
             lastIndex = variableReferenceRegex.lastIndex;
-            const name = match[1].trim();
+            let name = match[1].trim();
+            name = name.replace(/</g, "{{").replace(/>/g, "}}");
+
             const document = getCurrentTextDocument();
             const context = { rawRequest: request, parsedRequest: result };
+
+
+          const variableReferenceRegexOfName = /\{{2}(.+?)\}{2}/g;
+            let nameMatch: RegExpExecArray | null;
+            nameMatch:
+            while (nameMatch = variableReferenceRegexOfName.exec(name)) {
+                const varName = nameMatch[1];
+                if (varName){
+                    for (const [provider, cacheable] of this.providers) {
+                        if (resolvedVariables.has(varName)) {
+                            name = name.replace(nameMatch[0], resolvedVariables.get(varName)!);
+                            continue nameMatch;
+                        }
+                        if (await provider.has(varName, document, context)) {
+                            const { value, error, warning } = await provider.get(varName, document, context);
+                            if (!error && !warning) {
+                                if (cacheable) {
+                                    resolvedVariables.set(varName, value as string);
+                                }
+                                name = name.replace(nameMatch[0], resolvedVariables.get(varName)!);
+                                continue nameMatch;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+
             for (const [provider, cacheable] of this.providers) {
                 if (resolvedVariables.has(name)) {
                     result += resolvedVariables.get(name);

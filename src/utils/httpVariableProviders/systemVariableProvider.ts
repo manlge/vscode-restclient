@@ -16,6 +16,7 @@ import { CALLBACK_PORT, OidcClient } from '../auth/oidcClient';
 import { HttpClient } from '../httpClient';
 import { EnvironmentVariableProvider } from './environmentVariableProvider';
 import { HttpVariable, HttpVariableContext, HttpVariableProvider } from './httpVariableProvider';
+import { execSync } from 'child_process';
 
 const uuidv4 = require('uuid/v4');
 
@@ -35,6 +36,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
     private readonly processEnvRegex: RegExp = new RegExp(`\\${Constants.ProcessEnvVariableName}\\s(\\%)?(\\w+)`);
 
     private readonly dotenvRegex: RegExp = new RegExp(`\\${Constants.DotenvVariableName}\\s(\\%)?([\\w-.]+)`);
+    private readonly yycTokenRegex: RegExp = new RegExp(`\\${Constants.YYCTokenVariableName}\\s(.+)\\s(.+)\\s(.+)`);
 
     private readonly requestUrlRegex: RegExp = /^(?:[^\s]+\s+)([^:]*:\/\/\/?[^/\s]*\/?)/;
 
@@ -61,6 +63,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
         this.registerRandomIntVariable();
         this.registerProcessEnvVariable();
         this.registerDotenvVariable();
+        this.registerYYCTokenVariable();
         this.registerAadTokenVariable();
         this.registerOidcTokenVariable();
         this.registerAadV2TokenVariable();
@@ -223,6 +226,23 @@ export class SystemVariableProvider implements HttpVariableProvider {
 
             return { warning: ResolveWarningMessage.IncorrectDotenvVariableFormat };
         });
+    }
+
+    private registerYYCTokenVariable() {
+        this.resolveFuncs.set(
+          Constants.YYCTokenVariableName,
+          async (name, document) => {
+
+            const groups = this.yycTokenRegex.exec(name);
+            if (groups !== null && groups.length === 4) {
+              let value = execSync(`yyc-token-generator --url ${groups[1]} --access-key ${groups[2]} --access-secret ${groups[3]}`);
+
+              return { value: value.toString().trim() };
+            }
+
+            return { warning: ResolveWarningMessage.IncorrectDotenvVariableFormat };
+          }
+        );
     }
 
     private registerAadTokenVariable() {
