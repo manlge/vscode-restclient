@@ -235,7 +235,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
 
             const groups = this.yycTokenRegex.exec(name);
             if (groups !== null && groups.length === 4) {
-              let value = execSync(`yyc-token-generator --url ${groups[1]} --access-key ${groups[2]} --access-secret ${groups[3]}`);
+              let value = execSync(`yyc-token-generator --url "${groups[1]}" --access-key "${groups[2]}" --access-secret "${groups[3]}"`);
 
               return { value: value.toString().trim() };
             }
